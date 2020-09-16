@@ -121,36 +121,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &398598237
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 398598238}
-  m_Layer: 0
-  m_Name: empty
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &398598238
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 398598237}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.5072508, y: -0.26863492, z: -10.624023}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_RootOrder: 2
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &439539619
 GameObject:
   m_ObjectHideFlags: 0
@@ -180,16 +150,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ede82d5528a0ecc42ac64621ac39810c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  difficulty: 3
   colors:
-  - {r: 0.8962264, g: 0.5284354, b: 0.8057732, a: 0}
-  - {r: 0.4704966, g: 0.9150943, b: 0.7429437, a: 0}
-  - {r: 0.26610893, g: 0.7391083, b: 0.8679245, a: 0}
-  - {r: 1, g: 0.62736845, b: 0.3537736, a: 0}
-  - {r: 0.9539112, g: 0.990566, b: 0.4999555, a: 0}
+  - {r: 0.9433962, g: 0.51174796, b: 0.817926, a: 1}
+  - {r: 0.4704966, g: 0.9150943, b: 0.7429437, a: 1}
+  - {r: 0.26610893, g: 0.7391083, b: 0.8679245, a: 1}
+  - {r: 1, g: 0.62736845, b: 0.3537736, a: 1}
+  - {r: 0.9539112, g: 0.990566, b: 0.4999555, a: 1}
   thisBoard: {fileID: 439539619}
   hexagon: {fileID: 5265343634880573909, guid: 1697aaf0111d3a549a7031e000f6df1a, type: 3}
   quantity: 40
-  xPosition: -2
+  xPosition: -1.9
   yPosition: -4
 --- !u!4 &439539621
 Transform:
@@ -241,7 +212,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.8414472, g: 0.87742525, b: 0.9339623, a: 0}
+  m_BackGroundColor: {r: 0.23584908, g: 0.2325116, b: 0.2325116, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
