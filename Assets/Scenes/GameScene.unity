@@ -150,7 +150,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ede82d5528a0ecc42ac64621ac39810c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  difficulty: 3
+  difficulty: 5
   colors:
   - {r: 0.9433962, g: 0.51174796, b: 0.817926, a: 1}
   - {r: 0.4704966, g: 0.9150943, b: 0.7429437, a: 1}
