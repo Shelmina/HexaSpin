@@ -132,6 +132,7 @@ GameObject:
   - component: {fileID: 439539621}
   - component: {fileID: 439539620}
   - component: {fileID: 439539622}
+  - component: {fileID: 439539623}
   m_Layer: 0
   m_Name: Board
   m_TagString: Untagged
@@ -151,7 +152,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ede82d5528a0ecc42ac64621ac39810c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  testing: {fileID: 1893974999}
 --- !u!4 &439539621
 Transform:
   m_ObjectHideFlags: 0
@@ -190,7 +190,19 @@ MonoBehaviour:
   yPosition: -4
   difficulty: 3
   gameBoard: {fileID: 439539620}
-  quantity: 32
+--- !u!114 &439539623
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 439539619}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f785cd35a722ec9419f6a5dfd3a483fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  testing: {fileID: 1893974999}
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -473,8 +485,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0.011318183, y: 1}
-  m_AnchoredPosition: {x: 92.4, y: -44.5}
-  m_SizeDelta: {x: 187, y: 70}
+  m_AnchoredPosition: {x: 533.89, y: -216.85}
+  m_SizeDelta: {x: 1067.7783, y: 433.7008}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1893974999
 MonoBehaviour:
