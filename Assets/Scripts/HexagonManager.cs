@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class HexagonManager : MonoBehaviour
 {
+    public GameObject circle;
     public GameObject hexagon;
     public Color[] colors;
     public float xPosition;
@@ -14,12 +15,13 @@ public class HexagonManager : MonoBehaviour
     int row = 0;
     int column = 0;
     float xReminder;
-
+    bool valid = false;
     // Start is called before the first frame update
     private void Awake()
     {
         xReminder = xPosition;
         tiles = new GameObject[9, 8];
+        circle.SetActive(false);    
     }
     public void ConstructBoardTiles()
     {
@@ -49,7 +51,6 @@ public class HexagonManager : MonoBehaviour
         tiles[row, column] = (GameObject)Instantiate(hexagon, new Vector2(xPosition, yPosition), Quaternion.identity) as GameObject;
         tiles[row, column].name = "( " + row + ", " + column + ")";
         tiles[row, column].transform.parent = gameBoard.transform;
-        Debug.Log("row: " + row + " column:" + column);
     }
     private void ColorHexTiles()
     {
@@ -74,5 +75,35 @@ public class HexagonManager : MonoBehaviour
                 counter++;
         } while (counter > 1);
         tiles[row, column].GetComponent<SpriteRenderer>().color = colors[rand];
+    }
+    public Vector2 FindCenter(RaycastHit2D[] hit)
+    {
+        float xPos = 0;
+        float yPos = 0;
+        foreach (var item in hit)
+        {
+            if (item.collider.CompareTag("Hexagon"))
+            {
+                xPos += item.transform.position.x;
+                yPos += item.transform.position.y;
+            }
+            else
+            {
+                return new Vector2(-10f, 0f); //Out of the camera
+            }
+        }
+        valid = true;
+        return new Vector2(xPos / 3, yPos / 3);
+    }
+    public void SelectTrio(RaycastHit2D[] hit)
+    {
+        Vector2 center = FindCenter(hit);
+        Debug.Log(center.ToString());
+        if (valid)
+        {
+            circle.transform.position = center;
+            circle.SetActive(true);
+            //hexagonların etrafına bir çizgi çizilecek
+        }
     }
 }
