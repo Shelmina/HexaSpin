@@ -31,13 +31,10 @@ public class TouchManager : MonoBehaviour
             if (hit.Length == 3)
             {
                 hexagonManager.SelectTrio(hit);
-                //Debug.Log("koordinat: " + hexagonManager.FindCenter(hit).ToString());
                 foreach (var item in hit)
                 {
                     if (item.collider.CompareTag("Hexagon"))
                     {
-                        testing.text += " /";
-                        testing.text += item.transform.name;
                     }
                 }
             }

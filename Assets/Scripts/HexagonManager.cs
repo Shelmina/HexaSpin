@@ -6,6 +6,7 @@ public class HexagonManager : MonoBehaviour
 {
     public GameObject circle;
     public GameObject hexagon;
+    public GameObject frame;
     public Color[] colors;
     public float xPosition;
     public float yPosition;
@@ -21,7 +22,8 @@ public class HexagonManager : MonoBehaviour
     {
         xReminder = xPosition;
         tiles = new GameObject[9, 8];
-        circle.SetActive(false);    
+        circle.SetActive(false);
+        frame.SetActive(false);
     }
     public void ConstructBoardTiles()
     {
@@ -89,7 +91,7 @@ public class HexagonManager : MonoBehaviour
             }
             else
             {
-                return new Vector2(-10f, 0f); //Out of the camera
+                return new Vector2(-10f, 0f); //Out of the camera. Will be modified.
             }
         }
         valid = true;
@@ -103,7 +105,8 @@ public class HexagonManager : MonoBehaviour
         {
             circle.transform.position = center;
             circle.SetActive(true);
-            //hexagonların etrafına bir çizgi çizilecek
+            frame.transform.position = center;
+            frame.SetActive(true);
         }
     }
 }
