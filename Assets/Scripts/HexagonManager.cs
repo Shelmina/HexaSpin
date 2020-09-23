@@ -51,7 +51,7 @@ public class HexagonManager : MonoBehaviour
     private void CreateTile()
     {
         tiles[row, column] = (GameObject)Instantiate(hexagon, new Vector2(xPosition, yPosition), Quaternion.identity) as GameObject;
-        tiles[row, column].name = "( " + row + ", " + column + ")";
+        tiles[row, column].name = row + ", " + column;
         tiles[row, column].transform.parent = gameBoard.transform;
     }
     private void ColorHexTiles()
@@ -100,13 +100,31 @@ public class HexagonManager : MonoBehaviour
     public void SelectTrio(RaycastHit2D[] hit)
     {
         Vector2 center = FindCenter(hit);
-        Debug.Log(center.ToString());
+        //Debug.Log(center.ToString());
         if (valid)
         {
             circle.transform.position = center;
             circle.SetActive(true);
-            frame.transform.position = center;
-            frame.SetActive(true);
+            HexFrame(hit, center);
         }
+    }
+    public void HexFrame(RaycastHit2D[] rayhit, Vector2 vec)
+    {
+        double firstColumn = System.Char.GetNumericValue(rayhit[0].collider.name[3]);
+        double secondColumn = System.Char.GetNumericValue(rayhit[1].collider.name[3]);
+        double thirdColumn = System.Char.GetNumericValue(rayhit[2].collider.name[3]);
+
+        if ((firstColumn == secondColumn && firstColumn > thirdColumn)
+            || (secondColumn == thirdColumn && secondColumn > firstColumn)
+            || (firstColumn == thirdColumn && firstColumn > secondColumn))
+        {
+            frame.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+        }
+        else
+        {
+            frame.transform.rotation = Quaternion.Euler(0f, 0f, 60f);
+        }
+        frame.transform.position = vec;
+        frame.SetActive(true);
     }
 }

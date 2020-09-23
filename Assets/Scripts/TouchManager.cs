@@ -14,20 +14,20 @@ public class TouchManager : MonoBehaviour
         hexagonManager = GetComponent<HexagonManager>();
     }
     void Update()
-    {/*
+    {
         if ((Input.touchCount > 0) && Input.touches[0].phase == TouchPhase.Began)
         {
-            RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.touches[0].position), Vector2.zero);
-            if (hit.collider != null)
+            RaycastHit2D[] hit = Physics2D.CircleCastAll(Camera.main.ScreenToWorldPoint(Input.touches[0].position), 0.15f, Vector2.zero);
+            if (hit.Length == 3)
             {
-                testing.text = hit.transform.name;
+                hexagonManager.SelectTrio(hit);
             }
-        }*/
+        }
 //for testing on editor
 #if UNITY_EDITOR
         if (Input.GetMouseButtonDown(0))
         {
-            RaycastHit2D[] hit = Physics2D.CircleCastAll(Camera.main.ScreenToWorldPoint(Input.mousePosition), 0.2f, Vector2.zero);
+            RaycastHit2D[] hit = Physics2D.CircleCastAll(Camera.main.ScreenToWorldPoint(Input.mousePosition), 0.15f, Vector2.zero);
             if (hit.Length == 3)
             {
                 hexagonManager.SelectTrio(hit);
@@ -35,8 +35,11 @@ public class TouchManager : MonoBehaviour
                 {
                     if (item.collider.CompareTag("Hexagon"))
                     {
+                        testing.text += " : ";
+                        testing.text += item.transform.name;
                     }
                 }
+                testing.text += "\n";
             }
         }
 #endif
