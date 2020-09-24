@@ -17,13 +17,12 @@ public class HexagonManager : MonoBehaviour
     int column = 0;
     float xReminder;
     bool valid = false;
-    // Start is called before the first frame update
+
+
     private void Awake()
     {
         xReminder = xPosition;
         tiles = new GameObject[9, 8];
-        circle.SetActive(false);
-        frame.SetActive(false);
     }
     public void ConstructBoardTiles()
     {
@@ -54,6 +53,7 @@ public class HexagonManager : MonoBehaviour
         tiles[row, column].name = row + ", " + column;
         tiles[row, column].transform.parent = gameBoard.transform;
     }
+    //Color hexagons when the game started.
     private void ColorHexTiles()
     {
         int counter, rand;
@@ -78,6 +78,7 @@ public class HexagonManager : MonoBehaviour
         } while (counter > 1);
         tiles[row, column].GetComponent<SpriteRenderer>().color = colors[rand];
     }
+    //Find the center of three hexagons.
     public Vector2 FindCenter(RaycastHit2D[] hit)
     {
         float xPos = 0;
@@ -91,22 +92,32 @@ public class HexagonManager : MonoBehaviour
             }
             else
             {
-                return new Vector2(-10f, 0f); //Out of the camera. Will be modified.
+                valid = false;
+                return new Vector2(-10f, 0f); //Not selected hexagons.
             }
         }
         valid = true;
         return new Vector2(xPos / 3, yPos / 3);
     }
-    public void SelectTrio(RaycastHit2D[] hit)
+    //Select the group of hexagons.
+    public void Select(RaycastHit2D[] hit)
     {
         Vector2 center = FindCenter(hit);
-        //Debug.Log(center.ToString());
         if (valid)
         {
             circle.transform.position = center;
             circle.SetActive(true);
             HexFrame(hit, center);
         }
+    }
+    //Deselect and reposition frame and circle.
+    public void Deselect()
+    {
+        valid = false;
+        circle.transform.position = new Vector2(-10f, 0f);
+        circle.SetActive(false);
+        frame.transform.position = new Vector2(-10f, 0f);
+        frame.SetActive(false);
     }
     public void HexFrame(RaycastHit2D[] rayhit, Vector2 vec)
     {
@@ -126,5 +137,37 @@ public class HexagonManager : MonoBehaviour
         }
         frame.transform.position = vec;
         frame.SetActive(true);
+        Rotator(rayhit);
+    }
+    //Call the coroutine for all.
+    public void Rotator(RaycastHit2D[] rayhit){
+        for (int i = 0; i < 3; i++)
+        {
+            if (true)
+            {
+                StartCoroutine(RotateFunction(rayhit[0].collider.gameObject, circle));
+                StartCoroutine(RotateFunction(rayhit[1].collider.gameObject, circle));
+                StartCoroutine(RotateFunction(rayhit[2].collider.gameObject, circle));
+                StartCoroutine(RotateFunction(frame, circle));
+            }
+        }
+    }
+    //Animating the rotation of hexagons. It is called 4 times for a rotation.
+    IEnumerator RotateFunction(GameObject hexobject, GameObject circ)
+    {
+        float timeToRotate = 0.25f;
+        float rotateThreshold = 0.01f; //Pick a number that divides timeToRotate perfectly.
+        int numberOfIterations = Mathf.RoundToInt(timeToRotate / rotateThreshold);
+        float rotateAngle = 120 / (timeToRotate / rotateThreshold);
+
+        for (int i = 0; i < numberOfIterations; ++i)
+        {
+            hexobject.transform.RotateAround(circ.transform.position, new Vector3(0, 0, 120), rotateAngle);
+            yield return new WaitForSeconds(rotateThreshold);
+        }
+        if (hexobject.CompareTag("Hexagon"))
+        {
+            hexobject.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+        }
     }
 }
