@@ -1,103 +1,112 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
+using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEngine;
-
-public class HexagonManager : MonoBehaviour
+//board için yapıyorum bunu. Diğer hexagonların scriptleri farklı olacak
+public class HexagonManager : ProtectedClass
 {
-    public GameObject circle;
-    public GameObject hexagon;
+    public GameObject hexagonPrefab;
+    public GameObject centerDot;
     public GameObject frame;
     public Color[] colors;
-    public float xPosition;
-    public float yPosition;
-    public int difficulty;
-    public Board gameBoard;
     GameObject[,] tiles;
-    int row = 0;
-    int column = 0;
-    float xReminder;
-    bool valid = false;
-
-
+    GameObject tile;
+    private float xPosition;
+    private float yPosition;
+    private int counter = 0;
+    private int rowNum = 0;
+    private int colNum = 0;
+    private bool valid = false;
+    public bool explosionDetected = false;
+    private Hexagon tempHexagon;
+    public static HexagonManager instance = null;
+    List<GameObject> explodeList;
     private void Awake()
     {
-        xReminder = xPosition;
-        tiles = new GameObject[9, 8];
+        instance = GetComponent<HexagonManager>();
+        tiles = new GameObject[ROW, COLUMN];
+        xPosition = GRID_START_POSITION.x;
+        yPosition = GRID_START_POSITION.y;
+        explodeList = new List<GameObject>();
     }
     public void ConstructBoardTiles()
     {
-        for (int i = 0; i < 72; i++)
+        for (int i = 0; i < TOTAL_TILE / 2; i++)
         {
             CreateTile();
-            ColorHexTiles();
-            column += 2;
-            xPosition += 1.1f;
-            if (column == 8)
+            yPosition -= HALF_VERTICAL;
+            CreateTile();
+            yPosition += HALF_VERTICAL;
+            if (counter == 8)
             {
-                column = 1;
-                xPosition = xReminder + 0.55f;
-                yPosition += 0.31f;
-            }
-            if (column == 9)
-            {
-                row++;
-                xPosition = xReminder; //Moving to upper row
-                yPosition += 0.31f;
-                column = 0;
+                counter = 0;
+                rowNum++;
+                xPosition = GRID_START_POSITION.x;
+                yPosition += VERTICAL_GRID_DISTANCE;
             }
         }
     }
-    private void CreateTile()
+    public void CreateTile()
     {
-        tiles[row, column] = (GameObject)Instantiate(hexagon, new Vector2(xPosition, yPosition), Quaternion.identity) as GameObject;
-        tiles[row, column].name = row + ", " + column;
-        tiles[row, column].transform.parent = gameBoard.transform;
+        tile = (GameObject)Instantiate(hexagonPrefab, new Vector2(xPosition, yPosition), Quaternion.identity) as GameObject;
+        tempHexagon = tile.GetComponent<Hexagon>();
+        tempHexagon.SetColor(ColorHexTile());
+        tempHexagon.SetName(rowNum + ", " + colNum);
+        tempHexagon.SetParent(this.transform);
+        tiles[rowNum, colNum] = tempHexagon.gameObject;
+        xPosition += HALF_HORIZONTAL;
+        colNum++;
+        if (colNum == 8)
+            colNum = 0;
+        counter++;
     }
-    //Color hexagons when the game started.
-    private void ColorHexTiles()
+    private Color ColorHexTile()
     {
-        int counter, rand;
-        do
-        {
-            rand = Random.Range(0, difficulty);
-            counter = 0;
-            //sol alt tek
-            if (column > 0 && (column % 2) == 1 && (colors[rand] == tiles[row, column - 1].GetComponent<SpriteRenderer>().color))
-                counter++;
-            //sol alt cift
-            else if (column > 0 && (column % 2) == 0 && row > 0 && (colors[rand] == tiles[row - 1, column - 1].GetComponent<SpriteRenderer>().color))
-                counter++;
-            //alt
-            if (row > 0 && (colors[rand] == tiles[row - 1, column].GetComponent<SpriteRenderer>().color))
-                counter++;
-            //sag alt tek
-            if (column < 7 && row > 0 && (column % 2 == 1) && (colors[rand] == tiles[row, column + 1].GetComponent<SpriteRenderer>().color))
-                counter++;
-            else if (column < 7 && row > 0 && (column % 2 == 0) && (colors[rand] == tiles[row - 1, column + 1].GetComponent<SpriteRenderer>().color))
-                counter++;
-        } while (counter > 1);
-        tiles[row, column].GetComponent<SpriteRenderer>().color = colors[rand];
+        int total, rand;
+        do {
+            rand = Random.Range(0, 3);
+            total = 0;
+            //Check down-left when odd
+            if ((rowNum > 0) && (colNum % 2 == 1) && (colors[rand] == tiles[rowNum - 1, colNum - 1].GetComponent<SpriteRenderer>().color))
+                total++;
+            //Check down-left when even
+            else if ((rowNum > 0) && (colNum > 0) && (colNum % 2 == 0) && (colors[rand] == tiles[rowNum - 1, colNum].GetComponent<SpriteRenderer>().color))
+                total++;
+            //Check down
+            if ((rowNum > 0) && (colors[rand] == tiles[rowNum - 1, colNum].GetComponent<SpriteRenderer>().color))
+                total++;
+            if ((rowNum > 0) && (colNum < 7) && (colNum % 2 == 1))
+            {
+                //Check down-right when odd
+                if (colors[rand] == tiles[rowNum - 1, colNum + 1].GetComponent<SpriteRenderer>().color)
+                    total++;
+                //Check up-left when odd
+                if (colors[rand] == tiles[rowNum, colNum - 1].GetComponent<SpriteRenderer>().color)
+                    total++;
+            }
+        } while (total > 1);
+        return colors[rand];
     }
     //Find the center of three hexagons.
     public Vector2 FindCenter(RaycastHit2D[] hit)
     {
         float xPos = 0;
         float yPos = 0;
-        foreach (var item in hit)
+        if (HexagonManager.instance.IsValidGroup(hit))
         {
-            if (item.collider.CompareTag("Hexagon"))
+            foreach (var item in hit)
             {
+
                 xPos += item.transform.position.x;
                 yPos += item.transform.position.y;
             }
-            else
-            {
-                valid = false;
-                return new Vector2(-10f, 0f); //Not selected hexagons.
-            }
+            valid = true;
+            return new Vector2(xPos / 3, yPos / 3);
         }
-        valid = true;
-        return new Vector2(xPos / 3, yPos / 3);
+        else
+            return OUT_OF_CAMERA;
+
     }
     //Select the group of hexagons.
     public void Select(RaycastHit2D[] hit)
@@ -105,21 +114,26 @@ public class HexagonManager : MonoBehaviour
         Vector2 center = FindCenter(hit);
         if (valid)
         {
-            circle.transform.position = center;
-            circle.SetActive(true);
-            HexFrame(hit, center);
+            centerDot.transform.position = center;
+            centerDot.SetActive(true);
+            SetHexFrame(hit, center);
+        }
+        else
+        {
+            Deselect();
         }
     }
     //Deselect and reposition frame and circle.
     public void Deselect()
     {
         valid = false;
-        circle.transform.position = new Vector2(-10f, 0f);
-        circle.SetActive(false);
-        frame.transform.position = new Vector2(-10f, 0f);
+        centerDot.transform.position = OUT_OF_CAMERA;
+        centerDot.SetActive(false);
+        frame.transform.position = OUT_OF_CAMERA;
         frame.SetActive(false);
     }
-    public void HexFrame(RaycastHit2D[] rayhit, Vector2 vec)
+    //Adjust the rotation of frame for the best fit.
+    public void SetHexFrame(RaycastHit2D[] rayhit, Vector2 vec)
     {
         double firstColumn = System.Char.GetNumericValue(rayhit[0].collider.name[3]);
         double secondColumn = System.Char.GetNumericValue(rayhit[1].collider.name[3]);
@@ -137,28 +151,21 @@ public class HexagonManager : MonoBehaviour
         }
         frame.transform.position = vec;
         frame.SetActive(true);
-        Rotator(rayhit);
-    }
-    //Call the coroutine for all.
-    public void Rotator(RaycastHit2D[] rayhit){
-        for (int i = 0; i < 3; i++)
-        {
-            if (true)
-            {
-                StartCoroutine(RotateFunction(rayhit[0].collider.gameObject, circle));
-                StartCoroutine(RotateFunction(rayhit[1].collider.gameObject, circle));
-                StartCoroutine(RotateFunction(rayhit[2].collider.gameObject, circle));
-                StartCoroutine(RotateFunction(frame, circle));
-            }
         }
-    }
-    //Animating the rotation of hexagons. It is called 4 times for a rotation.
-    IEnumerator RotateFunction(GameObject hexobject, GameObject circ)
+    //Call the coroutine for all objects that .
+    public void Rotator(RaycastHit2D[] rayhit)
     {
-        float timeToRotate = 0.25f;
-        float rotateThreshold = 0.01f; //Pick a number that divides timeToRotate perfectly.
-        int numberOfIterations = Mathf.RoundToInt(timeToRotate / rotateThreshold);
-        float rotateAngle = 120 / (timeToRotate / rotateThreshold);
+        StartCoroutine(RotateFunction(rayhit[0].collider.gameObject, centerDot));
+        StartCoroutine(RotateFunction(rayhit[1].collider.gameObject, centerDot));
+        StartCoroutine(RotateFunction(rayhit[2].collider.gameObject, centerDot));
+        StartCoroutine(RotateFunction(frame, centerDot, rayhit));
+    }
+    //Animating the rotation of hexagons. It is called 4 times for rotation of a group.
+    IEnumerator RotateFunction(GameObject hexobject, GameObject circ, RaycastHit2D[] hit = null)
+    {
+        float rotateThreshold = 0.01f;
+        int numberOfIterations = Mathf.RoundToInt(TIME_TO_ROTATE / rotateThreshold);
+        float rotateAngle = 120 / (TIME_TO_ROTATE / rotateThreshold);
 
         for (int i = 0; i < numberOfIterations; ++i)
         {
@@ -169,5 +176,98 @@ public class HexagonManager : MonoBehaviour
         {
             hexobject.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
         }
+        if (hit != null)
+        {
+            SearchExplosion(hit);
+        } 
     }
-}
+    public bool IsValidGroup(RaycastHit2D[] hit)
+    {
+        if (hit.Length != 3)
+            return false;
+        foreach (var item in hit)
+        {
+            if (!item.collider.CompareTag("Hexagon"))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+    //Examines hexagons that are moved recently
+    public bool SearchExplosion(RaycastHit2D[] hit)
+    {
+        foreach (var item in hit)
+        {
+            tempHexagon = item.transform.GetComponent<Hexagon>();
+            FillExplodeList(tempHexagon);
+        }
+        return true;
+    }
+    //Fill the list if there is any match for explosion
+    public void FillExplodeList(Hexagon item)
+    {
+        RaycastHit2D[] neighbours = StructToRaycastArray(item);
+        Color color = item.GetColor();
+        //Compare neighbours towards clockwise direction
+        for (int i = 0; i < 6; i++)
+        {
+            if ((i == 5)) {
+                if ((neighbours[0].collider != null) && (neighbours[i].collider != null)
+                && (color == neighbours[0].collider.GetComponent<SpriteRenderer>().color)
+                && (color == neighbours[i].collider.GetComponent<SpriteRenderer>().color))
+                {
+                    explosionDetected = true;
+                    if (!explodeList.Contains(item.gameObject))
+                    {
+                        explodeList.Add(item.gameObject);
+                    }
+                    if (!explodeList.Contains(neighbours[i].transform.gameObject))
+                    {
+                        explodeList.Add(neighbours[i].transform.gameObject);
+                    }
+                    if (!explodeList.Contains(neighbours[0].transform.gameObject))
+                    {
+                        explodeList.Add(neighbours[0].transform.gameObject);
+                    }                }
+            }
+            else if((neighbours[i].collider != null)&&(neighbours[i + 1].collider != null)
+                &&(color == neighbours[i].collider.GetComponent<SpriteRenderer>().color)
+                &&(color == neighbours[i + 1].collider.GetComponent<SpriteRenderer>().color))
+            {
+                explosionDetected = true;
+                if (!explodeList.Contains(item.gameObject))
+                {
+                    explodeList.Add(item.gameObject);
+                }
+                if (!explodeList.Contains(neighbours[i].transform.gameObject))
+                {
+                    explodeList.Add(neighbours[i].transform.gameObject);
+                }
+                if (!explodeList.Contains(neighbours[i + 1].transform.gameObject))
+                {
+                    explodeList.Add(neighbours[i + 1].transform.gameObject);
+                }
+            }
+        }
+    }
+    //This is a helper that returns an array of neighbours
+    public RaycastHit2D[] StructToRaycastArray(Hexagon item)
+    {
+        RaycastHit2D[] tempArray = new RaycastHit2D[6];
+        Hexagon.NearbyTiles neighbours = item.GetNearbies();
+        RaycastHit2D up = Physics2D.Raycast(neighbours.up, Vector2.zero);
+        RaycastHit2D down = Physics2D.Raycast(neighbours.down, Vector2.zero);
+        RaycastHit2D upleft = Physics2D.Raycast(neighbours.upleft, Vector2.zero);
+        RaycastHit2D upright = Physics2D.Raycast(neighbours.upright, Vector2.zero);
+        RaycastHit2D downleft = Physics2D.Raycast(neighbours.downleft, Vector2.zero);
+        RaycastHit2D downright = Physics2D.Raycast(neighbours.downright, Vector2.zero);
+        tempArray[0] = up;
+        tempArray[1] = upright;
+        tempArray[2] = downright;
+        tempArray[3] = down;
+        tempArray[4] = downleft;
+        tempArray[5] = upleft;
+        return tempArray;
+    }
+    }
