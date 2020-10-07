@@ -1,15 +1,17 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.Tracing;
-using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEngine;
-//board için yapıyorum bunu. Diğer hexagonların scriptleri farklı olacak
+using DG.Tweening;
+using UnityEditorInternal;
+
 public class HexagonManager : ProtectedClass
 {
     public GameObject hexagonPrefab;
     public GameObject centerDot;
     public GameObject frame;
+    public GameObject parentObject;
     public Color[] colors;
+    public bool clockwise;
     GameObject[,] tiles;
     GameObject tile;
     private float xPosition;
@@ -22,6 +24,9 @@ public class HexagonManager : ProtectedClass
     private Hexagon tempHexagon;
     public static HexagonManager instance = null;
     List<GameObject> explodeList;
+    Vector2 center;
+    Vector3 rotateVector;
+    Vector3 zeroVector;
     private void Awake()
     {
         instance = GetComponent<HexagonManager>();
@@ -65,7 +70,7 @@ public class HexagonManager : ProtectedClass
     {
         int total, rand;
         do {
-            rand = Random.Range(0, 3);
+            rand = Random.Range(0, 5);
             total = 0;
             //Check down-left when odd
             if ((rowNum > 0) && (colNum % 2 == 1) && (colors[rand] == tiles[rowNum - 1, colNum - 1].GetComponent<SpriteRenderer>().color))
@@ -88,9 +93,20 @@ public class HexagonManager : ProtectedClass
         } while (total > 1);
         return colors[rand];
     }
-    //Find the center of three hexagons.
+   
+    public void Select(RaycastHit2D[] hit)
+    {
+        center = FindCenter(hit);
+        if (valid)
+        {
+            centerDot.transform.position = center;
+            centerDot.SetActive(true);
+            SetHexFrame(hit, center);
+        }
+    }
     public Vector2 FindCenter(RaycastHit2D[] hit)
     {
+        //Find the center of three hexagons.
         float xPos = 0;
         float yPos = 0;
         if (HexagonManager.instance.IsValidGroup(hit))
@@ -109,20 +125,6 @@ public class HexagonManager : ProtectedClass
 
     }
     //Select the group of hexagons.
-    public void Select(RaycastHit2D[] hit)
-    {
-        Vector2 center = FindCenter(hit);
-        if (valid)
-        {
-            centerDot.transform.position = center;
-            centerDot.SetActive(true);
-            SetHexFrame(hit, center);
-        }
-        else
-        {
-            Deselect();
-        }
-    }
     //Deselect and reposition frame and circle.
     public void Deselect()
     {
@@ -152,34 +154,25 @@ public class HexagonManager : ProtectedClass
         frame.transform.position = vec;
         frame.SetActive(true);
         }
-    //Call the coroutine for all objects that .
-    public void Rotator(RaycastHit2D[] rayhit)
+    public void RotateTween(RaycastHit2D[] rayhit)
     {
-        StartCoroutine(RotateFunction(rayhit[0].collider.gameObject, centerDot));
-        StartCoroutine(RotateFunction(rayhit[1].collider.gameObject, centerDot));
-        StartCoroutine(RotateFunction(rayhit[2].collider.gameObject, centerDot));
-        StartCoroutine(RotateFunction(frame, centerDot, rayhit));
-    }
-    //Animating the rotation of hexagons. It is called 4 times for rotation of a group.
-    IEnumerator RotateFunction(GameObject hexobject, GameObject circ, RaycastHit2D[] hit = null)
-    {
-        float rotateThreshold = 0.01f;
-        int numberOfIterations = Mathf.RoundToInt(TIME_TO_ROTATE / rotateThreshold);
-        float rotateAngle = 120 / (TIME_TO_ROTATE / rotateThreshold);
-
-        for (int i = 0; i < numberOfIterations; ++i)
+        parentObject.transform.position = center;
+        foreach (var item in rayhit)
         {
-            hexobject.transform.RotateAround(circ.transform.position, new Vector3(0, 0, 120), rotateAngle);
-            yield return new WaitForSeconds(rotateThreshold);
+            item.transform.parent = parentObject.transform;
         }
-        if (hexobject.CompareTag("Hexagon"))
-        {
-            hexobject.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
-        }
-        if (hit != null)
-        {
-            SearchExplosion(hit);
-        } 
+        Sequence mySequence = DOTween.Sequence();
+        frame.transform.parent = parentObject.transform;
+        rotateVector = clockwise ? (new Vector3(0, 0, 120)) : (new Vector3(0, 0, -120));
+        mySequence.Append(parentObject.transform.DORotate(rotateVector, 1)
+            .OnComplete(()=> {if (explosionDetected)
+                    mySequence.Kill();
+            }).SetLoops(3));
+       
+      
+        zeroVector = new Vector3(0f, 0f, 0f);
+        zeroVector += rotateVector;
+        parentObject.transform.DORotate(rotateVector, 1).OnStepComplete(() => SearchExplosion(rayhit)).SetLoops(3);
     }
     public bool IsValidGroup(RaycastHit2D[] hit)
     {
@@ -195,14 +188,13 @@ public class HexagonManager : ProtectedClass
         return true;
     }
     //Examines hexagons that are moved recently
-    public bool SearchExplosion(RaycastHit2D[] hit)
+    public void SearchExplosion(RaycastHit2D[] hit)
     {
         foreach (var item in hit)
         {
             tempHexagon = item.transform.GetComponent<Hexagon>();
             FillExplodeList(tempHexagon);
         }
-        return true;
     }
     //Fill the list if there is any match for explosion
     public void FillExplodeList(Hexagon item)
@@ -270,4 +262,45 @@ public class HexagonManager : ProtectedClass
         tempArray[5] = upleft;
         return tempArray;
     }
+    //Replacement will be added. This function just for testing.
+    public void Explode()
+    {
+        foreach (var item in explodeList)
+        {
+            Destroy(item);
+        }
+        explosionDetected = false;
     }
+    //Call the coroutine for all objects that.
+    public IEnumerator Rotator(RaycastHit2D[] rayhit)
+    {
+        StartCoroutine(RotateFunction(rayhit[0].collider.gameObject, centerDot));
+        StartCoroutine(RotateFunction(rayhit[1].collider.gameObject, centerDot));
+        StartCoroutine(RotateFunction(rayhit[2].collider.gameObject, centerDot));
+        StartCoroutine(RotateFunction(frame, centerDot, rayhit));
+        yield return null;
+    }
+    //Animating the rotation of hexagons. It is called 4 times for rotation of a group.
+    IEnumerator RotateFunction(GameObject hexobject, GameObject circ, RaycastHit2D[] hit = null)
+    {
+        float rotateThreshold = 0.01f;
+        int numberOfIterations = Mathf.RoundToInt(TIME_TO_ROTATE / rotateThreshold);
+        float rotateAngle = 120 / (TIME_TO_ROTATE / rotateThreshold);
+        Vector3 rotateVector = clockwise ? (new Vector3(0, 0, -120)) : (new Vector3(0, 0, 120));
+        for (int i = 0; i < numberOfIterations; ++i)
+        {
+            hexobject.transform.RotateAround(circ.transform.position, rotateVector, rotateAngle);
+            yield return new WaitForSeconds(rotateThreshold);
+        }
+        if (hexobject.CompareTag("Hexagon"))
+        {
+            hexobject.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+        }
+        if (hit != null)
+        {
+            SearchExplosion(hit);
+        }
+    }
+
+
+}
