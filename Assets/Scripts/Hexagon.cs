@@ -5,8 +5,6 @@ using UnityEngine;
 
 public class Hexagon : ProtectedClass
 {
-    //bomb star gibi
-    //sonrasında hepsine farklı cs dosyalarını o prefablere atıcaksın
     public struct NearbyTiles
     {
         public Vector2 up;

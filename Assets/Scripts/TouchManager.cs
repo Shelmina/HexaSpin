@@ -10,7 +10,6 @@ public class TouchManager : MonoBehaviour
 {
     private HexagonManager hexagonManager;
     bool selected = false;
-    bool swipeDetected = false;
     Vector2 initialPosition;
     Vector2 currentPosition;
     RaycastHit2D[] hit;
@@ -37,10 +36,9 @@ public class TouchManager : MonoBehaviour
                  {
                      hexagonManager.Select(hit);
                      DetectSwipe();
-                     if (swipeDetected)
+                     //if (swipeDetected)
                      {
                          StartCoroutine(Waiter(hit));
-                         swipeDetected = false;
                      }
                  }
              }
@@ -51,37 +49,34 @@ public class TouchManager : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
             initialPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
 
-        if (Input.GetMouseButtonUp(0))
+        if ((!hexagonManager.rotateDetected)&&(Input.GetMouseButtonUp(0)))
         {
             currentPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             if (selected && DetectSwipe(currentPosition))
             {
                 //hexagonManager.RotateTween(hit);
                 StartCoroutine(Waiter(hit));
-                swipeDetected = false;
             }
             else { 
-            RaycastHit2D nullchecker = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
-            if (nullchecker.collider == null && false)
-            {
-                hexagonManager.Deselect();
-                selected = false;
-            }
-            else
-            {
-                hit = Physics2D.CircleCastAll(Camera.main.ScreenToWorldPoint(Input.mousePosition), 0.15f, Vector2.zero);
-                if (hexagonManager.IsValidGroup(hit))
+                RaycastHit2D nullchecker = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
+                if (nullchecker.collider == null && false)
                 {
-                    hexagonManager.Select(hit);
-                    selected = true;
+                    hexagonManager.Deselect();
+                    selected = false;
+                }
+                else
+                {
+                    hit = Physics2D.CircleCastAll(Camera.main.ScreenToWorldPoint(Input.mousePosition), 0.15f, Vector2.zero);
+                    if (hexagonManager.IsValidGroup(hit))
+                    {
+                        hexagonManager.Select(hit);
+                        selected = true;
+                    }
                 }
             }
-            }
         }
-        
 #endif
     }
-
     IEnumerator Waiter(RaycastHit2D[] hit)
     {
         hexagonManager.frame.SetActive(false);
@@ -96,6 +91,7 @@ public class TouchManager : MonoBehaviour
                 break;
             }
         }
+        hexagonManager.rotateDetected = false;
         hexagonManager.frame.SetActive(true);
         hexagonManager.centerDot.SetActive(true);
     }
@@ -114,7 +110,6 @@ public class TouchManager : MonoBehaviour
                 positionBool = !positionBool;
             }
             hexagonManager.clockwise = positionBool;
-            swipeDetected = true;
             return true;
         }
         else
