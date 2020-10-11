@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
 using UnityEditorInternal;
-
 public class HexagonManager : ProtectedClass
 {
     public GameObject hexagonPrefab;
@@ -275,37 +274,45 @@ public class HexagonManager : ProtectedClass
     {
         foreach (var item in explodeList)
         {
-            FindLinecastArray(item);
+            RaycastHit2D[] dummyarray = FindLinecastArray(item);
             item.transform.position = OUT_OF_CAMERA;
             item.SetActive(false);
+            Dummy(dummyarray);
         }
         explosionDetected = false;
     }
+    public void Dummy(RaycastHit2D[] arr)
+    {
+        Vector2 temptiledown;
+        RaycastHit2D ray;
+        while (true)
+        {
+            temptiledown = arr[0].collider.GetComponent<Hexagon>().GetNearbies().down;
+            ray = Physics2D.Raycast(temptiledown, Vector2.zero);
+            if (ray.collider != null)
+                break;
+            for (int i = 0; i < arr.Length; i++)
+            {
+                arr[i].collider.gameObject.transform.position -= new Vector3(0f, VERTICAL_GRID_DISTANCE, 0f);
+                //arr[i].collider.gameObject.transform.DOMoveY(
+                //arr[i].collider.gameObject.transform.position.y - VERTICAL_GRID_DISTANCE, 0.5f);
+            }
+        }
+    }
     //Examines x values of exploded hexagons and adds it to an array.
-    public void FindLinecastArray(GameObject hexagon)
+    public RaycastHit2D[] FindLinecastArray(GameObject hexagon)
     {
         Vector2 initialPos = new Vector2(hexagon.transform.position.x, hexagon.transform.position.y);
         RaycastHit2D[] foundElements = Physics2D.LinecastAll(initialPos, initialPos + new Vector2(0f, 6f));
-        Vector2 temptiledown;
-        RaycastHit2D ray;
         int index;
         for (index = 0; index < explodeList.Count; index++)
         {
             if (!explodeList.Contains(foundElements[index].collider.gameObject))
                 break;
         }
-        while (true) {
-            temptiledown = foundElements[index].collider.GetComponent<Hexagon>().GetNearbies().down;
-            ray = Physics2D.Raycast(temptiledown, Vector2.zero);
-            if (ray.collider != null)
-                break;
-            for (int i = index; i < foundElements.Length; i++)
-            {
-                foundElements[i].collider.gameObject.transform.position -= new Vector3(0f, VERTICAL_GRID_DISTANCE, 0f);
-                //foundElements[i].collider.gameObject.transform.DOMoveY(
-                 //foundElements[i].collider.gameObject.transform.position.y - VERTICAL_GRID_DISTANCE, 1);
-            }
-        }
+        RaycastHit2D[] result = new RaycastHit2D[foundElements.Length - index];
+        System.Array.Copy(foundElements, index, result, 0, foundElements.Length - index);
+        return result;
     }
     public void MoveObjects(GameObject element)
     {
