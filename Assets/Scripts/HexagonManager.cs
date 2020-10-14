@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
 using UnityEditorInternal;
+using System.Runtime.InteropServices.WindowsRuntime;
+
 public class HexagonManager : ProtectedClass
 {
     public GameObject hexagonPrefab;
@@ -24,6 +26,7 @@ public class HexagonManager : ProtectedClass
     private Hexagon tempHexagon;
     public static HexagonManager instance = null;
     List<GameObject> explodeList, objectsToMove;
+    List<Vector2> linecastList;
     Vector2 center;
     Vector3 rotateVector;
     Vector3 zeroVector;
@@ -272,52 +275,73 @@ public class HexagonManager : ProtectedClass
     //Replacement will be added. This function just for testing.
     public void Explode()
     {
+        linecastList = new List<Vector2>
+        {
+            new Vector2(explodeList[0].transform.position.x, explodeList[0].transform.position.y)
+        };
+        FillLinecast();
         foreach (var item in explodeList)
         {
-            RaycastHit2D[] dummyarray = FindLinecastArray(item);
             item.transform.position = OUT_OF_CAMERA;
             item.SetActive(false);
-            Dummy(dummyarray);
+        }
+        foreach (var item in linecastList)
+        {
+            StartCoroutine(MoveObjects(FindLinecastArray(item)));
         }
         explosionDetected = false;
     }
-    public void Dummy(RaycastHit2D[] arr)
+    public void FillLinecast()
     {
-        Vector2 temptiledown;
-        RaycastHit2D ray;
-        while (true)
+        foreach (var item in explodeList)
         {
-            temptiledown = arr[0].collider.GetComponent<Hexagon>().GetNearbies().down;
-            ray = Physics2D.Raycast(temptiledown, Vector2.zero);
-            if (ray.collider != null)
-                break;
-            for (int i = 0; i < arr.Length; i++)
+            bool add = true;
+            for (int i = 0; i < linecastList.Count; i++)
             {
-                arr[i].collider.gameObject.transform.position -= new Vector3(0f, VERTICAL_GRID_DISTANCE, 0f);
-                //arr[i].collider.gameObject.transform.DOMoveY(
-                //arr[i].collider.gameObject.transform.position.y - VERTICAL_GRID_DISTANCE, 0.5f);
+                if (linecastList[0].y == item.transform.position.y)
+                    add = false;
+            }
+            if (add)
+                linecastList.Add(item.transform.position);
+        }
+    }
+    //Linecasts positive y direction from given point.
+    public RaycastHit2D[] FindLinecastArray(Vector2 pos)
+    {
+        RaycastHit2D[] foundElements = Physics2D.LinecastAll(pos, pos + new Vector2(0f, 6f));
+        return foundElements;
+    }
+    IEnumerator MoveObjects(RaycastHit2D[] arr)
+    {
+        int steps = StepToFall(arr[0].collider.gameObject);
+        for (int i = 0; i < arr.Length; i++)
+        {
+            arr[i].collider.gameObject.transform.DOMoveY(arr[i].collider.gameObject.transform.position.y - steps * VERTICAL_GRID_DISTANCE, steps * 2f);
+        }
+        yield return new WaitForSeconds(steps * 2f);
+        
+    }
+    public int StepToFall(GameObject item)
+    {
+        Vector2 down = new Vector2(item.transform.position.x, item.transform.position.y - VERTICAL_GRID_DISTANCE);
+        RaycastHit2D ray;
+        int steps = 0;
+        while (down.y > -0.36f)
+        {
+            ray = Physics2D.Raycast(down, Vector2.zero);
+            if (ray.collider == null)
+            {
+                down -= new Vector2(0f, VERTICAL_GRID_DISTANCE);
+                steps++;
+            }
+            else
+            {
+                break;
             }
         }
+        return steps;
     }
-    //Examines x values of exploded hexagons and adds it to an array.
-    public RaycastHit2D[] FindLinecastArray(GameObject hexagon)
-    {
-        Vector2 initialPos = new Vector2(hexagon.transform.position.x, hexagon.transform.position.y);
-        RaycastHit2D[] foundElements = Physics2D.LinecastAll(initialPos, initialPos + new Vector2(0f, 6f));
-        int index;
-        for (index = 0; index < explodeList.Count; index++)
-        {
-            if (!explodeList.Contains(foundElements[index].collider.gameObject))
-                break;
-        }
-        RaycastHit2D[] result = new RaycastHit2D[foundElements.Length - index];
-        System.Array.Copy(foundElements, index, result, 0, foundElements.Length - index);
-        return result;
-    }
-    public void MoveObjects(GameObject element)
-    {
-        element.transform.DOMoveY(element.transform.position.y - VERTICAL_GRID_DISTANCE, 1);
-    }
+
     //Call the coroutine for all objects that.
     public IEnumerator Rotator(RaycastHit2D[] rayhit)
     {
