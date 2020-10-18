@@ -41,14 +41,6 @@ public class Hexagon : ProtectedClass
     {
         return this.GetComponent<SpriteRenderer>().color;
     }
-    public String GetName()
-    {
-        return this.name;
-    }
-    public void SetName(String str)
-    {
-        this.name = str;
-    }
     public void SetColor(Color col)
     {
         this.GetComponent<SpriteRenderer>().color = col;

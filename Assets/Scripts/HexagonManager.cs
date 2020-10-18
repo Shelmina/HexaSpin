@@ -2,17 +2,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
-using UnityEditorInternal;
-using System.Runtime.InteropServices.WindowsRuntime;
 
 public class HexagonManager : ProtectedClass
 {
     public GameObject hexagonPrefab;
     public GameObject centerDot;
     public GameObject frame;
-    public GameObject parentObject;
+    public GameObject refHex;
     public Color[] colors;
     public bool clockwise;
+    public bool moveEnded;
     GameObject[,] tiles;
     GameObject tile;
     private float xPosition;
@@ -20,16 +19,12 @@ public class HexagonManager : ProtectedClass
     private int counter = 0;
     private int rowNum = 0;
     private int colNum = 0;
+    public int moveCounter;
     private bool valid = false;
-    public bool explosionDetected = false;
     public bool rotateDetected = false;
     private Hexagon tempHexagon;
     public static HexagonManager instance = null;
-    List<GameObject> explodeList, objectsToMove;
-    List<Vector2> linecastList;
-    Vector2 center;
-    Vector3 rotateVector;
-    Vector3 zeroVector;
+    public List<GameObject> explodeList, objectPool;
     private void Awake()
     {
         instance = GetComponent<HexagonManager>();
@@ -60,7 +55,6 @@ public class HexagonManager : ProtectedClass
         tile = (GameObject)Instantiate(hexagonPrefab, new Vector2(xPosition, yPosition), Quaternion.identity) as GameObject;
         tempHexagon = tile.GetComponent<Hexagon>();
         tempHexagon.SetColor(ColorHexTile(tempHexagon));
-        tempHexagon.SetName(rowNum + ", " + colNum);
         tempHexagon.SetParent(this.transform);
         tiles[rowNum, colNum] = tempHexagon.gameObject;
         xPosition += HALF_HORIZONTAL;
@@ -107,7 +101,7 @@ public class HexagonManager : ProtectedClass
     //Select the group of hexagons.
     public void Select(RaycastHit2D[] hit)
     {
-        center = FindCenter(hit);
+        Vector2 center = FindCenter(hit);
         if (valid)
         {
             centerDot.transform.position = center;
@@ -148,13 +142,13 @@ public class HexagonManager : ProtectedClass
     //Adjust the rotation of frame for the best fit.
     public void SetHexFrame(RaycastHit2D[] rayhit, Vector2 vec)
     {
-        double firstColumn = System.Char.GetNumericValue(rayhit[0].collider.name[3]);
-        double secondColumn = System.Char.GetNumericValue(rayhit[1].collider.name[3]);
-        double thirdColumn = System.Char.GetNumericValue(rayhit[2].collider.name[3]);
+        float firstColumn = rayhit[0].transform.position.x;
+        float secondColumn = rayhit[1].transform.position.x;
+        float thirdColumn = rayhit[2].transform.position.x;
 
-        if ((firstColumn == secondColumn && firstColumn > thirdColumn)
-            || (secondColumn == thirdColumn && secondColumn > firstColumn)
-            || (firstColumn == thirdColumn && firstColumn > secondColumn))
+        if ((Mathf.Approximately(firstColumn, secondColumn) && firstColumn > thirdColumn)
+            || (Mathf.Approximately(thirdColumn, secondColumn) && secondColumn > firstColumn)
+            || (Mathf.Approximately(firstColumn, thirdColumn) && firstColumn > secondColumn))
         {
             frame.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
         }
@@ -164,26 +158,7 @@ public class HexagonManager : ProtectedClass
         }
         frame.transform.position = vec;
         frame.SetActive(true);
-        }
-    /*
-    public void RotateTween(RaycastHit2D[] rayhit)
-    {
-        parentObject.transform.position = center;
-        foreach (var item in rayhit)
-        {
-            item.transform.parent = parentObject.transform;
-        }
-        Sequence mySequence = DOTween.Sequence();
-        frame.transform.parent = parentObject.transform;
-        rotateVector = clockwise ? (new Vector3(0, 0, 120)) : (new Vector3(0, 0, -120));
-        mySequence.Append(parentObject.transform.DORotate(rotateVector, 1)
-            .OnComplete(()=> {if (explosionDetected)
-                    mySequence.Kill();
-            }).SetLoops(3));
-        zeroVector = new Vector3(0f, 0f, 0f);
-        zeroVector += rotateVector;
-        parentObject.transform.DORotate(rotateVector, 1).OnStepComplete(() => SearchExplosion(rayhit)).SetLoops(3);
-    }*/
+    }
     public bool IsValidGroup(RaycastHit2D[] hit)
     {
         if (hit.Length != 3)
@@ -219,7 +194,6 @@ public class HexagonManager : ProtectedClass
                 && (color == neighbours[0].collider.GetComponent<SpriteRenderer>().color)
                 && (color == neighbours[i].collider.GetComponent<SpriteRenderer>().color))
                 {
-                    explosionDetected = true;
                     if (!explodeList.Contains(item.gameObject))
                     {
                         explodeList.Add(item.gameObject);
@@ -237,7 +211,6 @@ public class HexagonManager : ProtectedClass
                 &&(color == neighbours[i].collider.GetComponent<SpriteRenderer>().color)
                 &&(color == neighbours[i + 1].collider.GetComponent<SpriteRenderer>().color))
             {
-                explosionDetected = true;
                 if (!explodeList.Contains(item.gameObject))
                 {
                     explodeList.Add(item.gameObject);
@@ -273,37 +246,40 @@ public class HexagonManager : ProtectedClass
         return tempArray;
     }
     //Replacement will be added. This function just for testing.
-    public void Explode()
+    public List<Vector2> Explode()
     {
-        linecastList = new List<Vector2>
-        {
-            new Vector2(explodeList[0].transform.position.x, explodeList[0].transform.position.y)
-        };
-        FillLinecast();
+        moveEnded = false;
+        moveCounter = 0;
+        List<Vector2> linecastList = FillLinecast();
         foreach (var item in explodeList)
         {
+            objectPool.Add(item);
             item.transform.position = OUT_OF_CAMERA;
             item.SetActive(false);
         }
+        explodeList.Clear();
         foreach (var item in linecastList)
         {
             StartCoroutine(MoveObjects(FindLinecastArray(item)));
         }
-        explosionDetected = false;
+        return linecastList;
+       // StartCoroutine(Filler(linecastList));
     }
-    public void FillLinecast()
+    public List<Vector2> FillLinecast()
     {
+        List<Vector2> tempList = new List<Vector2>();
         foreach (var item in explodeList)
         {
             bool add = true;
-            for (int i = 0; i < linecastList.Count; i++)
+            for (int i = 0; i < tempList.Count; i++)
             {
-                if (linecastList[0].y == item.transform.position.y)
+                if (Mathf.Approximately(tempList[i].x, item.transform.position.x))
                     add = false;
             }
             if (add)
-                linecastList.Add(item.transform.position);
+                tempList.Add(item.transform.position);
         }
+        return tempList;
     }
     //Linecasts positive y direction from given point.
     public RaycastHit2D[] FindLinecastArray(Vector2 pos)
@@ -313,13 +289,25 @@ public class HexagonManager : ProtectedClass
     }
     IEnumerator MoveObjects(RaycastHit2D[] arr)
     {
-        int steps = StepToFall(arr[0].collider.gameObject);
         for (int i = 0; i < arr.Length; i++)
         {
-            arr[i].collider.gameObject.transform.DOMoveY(arr[i].collider.gameObject.transform.position.y - steps * VERTICAL_GRID_DISTANCE, steps * 2f);
+            TweenMove(arr[i].collider.gameObject);
+            yield return new WaitForSeconds(WAIT_THRESHOLD);
         }
-        yield return new WaitForSeconds(steps * 2f);
-        
+        moveCounter++;
+        /*SearchExplosion(arr);
+        if (explodeList.Count > 0)
+        {
+            Explode();
+        }*/
+    }
+    public void TweenMove(GameObject gameObj)
+    {
+        int steps = StepToFall(gameObj);
+        if (steps > 0)
+        {
+            gameObj.transform.DOMoveY(gameObj.transform.position.y - steps * VERTICAL_GRID_DISTANCE, WAIT_THRESHOLD);
+        }
     }
     public int StepToFall(GameObject item)
     {
@@ -341,7 +329,6 @@ public class HexagonManager : ProtectedClass
         }
         return steps;
     }
-
     //Call the coroutine for all objects that.
     public IEnumerator Rotator(RaycastHit2D[] rayhit)
     {
@@ -371,6 +358,51 @@ public class HexagonManager : ProtectedClass
         if (hit != null)
         {
             SearchExplosion(hit);
+        }
+    }
+    public IEnumerator Filler(List<Vector2> vecList) {
+        foreach (var pos in vecList)
+        {
+            float yPos = pos.y;
+            RaycastHit2D ray;
+            bool first = true;
+            Vector2 reference = OUT_OF_CAMERA;
+            int emptySpots = 0;
+            while (yPos < 5.7f)
+            {
+                ray = Physics2D.Raycast(new Vector2(pos.x, yPos), Vector2.zero);
+                if (ray.collider == null)
+                {
+                    if (first)
+                    {
+                        reference = new Vector2(pos.x, yPos);
+                        first = false;
+                    }
+                    emptySpots++;
+                    yPos += VERTICAL_GRID_DISTANCE;
+                }
+                else
+                    yPos += VERTICAL_GRID_DISTANCE;
+            }
+            StartCoroutine(FillColumn(emptySpots, reference));
+            yield return new WaitForSeconds(emptySpots * WAIT_THRESHOLD + 0.1f);
+        }
+        yield return null;
+    }
+    IEnumerator FillColumn(int emptySpots, Vector2 reference)
+    {
+        GameObject gameObj;  
+        for (int i = 0; i < emptySpots; i++)
+        {
+            refHex.transform.position = reference;
+            gameObj = objectPool.Count > 0 ? objectPool[0] : null;
+            objectPool.Remove(gameObj);
+            gameObj.SetActive(true);
+            gameObj.GetComponent<Hexagon>().SetColor(ColorHexTile(refHex.GetComponent<Hexagon>()));
+            gameObj.transform.position = reference + new Vector2(0f, 10f);
+            gameObj.transform.DOMoveY(reference.y, WAIT_THRESHOLD);
+            reference += new Vector2(0f, VERTICAL_GRID_DISTANCE); //Move to the upper spot
+            yield return new WaitForSeconds(WAIT_THRESHOLD);
         }
     }
 }

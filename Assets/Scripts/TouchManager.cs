@@ -44,6 +44,7 @@ public class TouchManager : MonoBehaviour
              }
              selectable = true;
          }*/
+
         //for testing on editor
 #if UNITY_EDITOR
         if (Input.GetMouseButtonDown(0))
@@ -54,8 +55,7 @@ public class TouchManager : MonoBehaviour
             currentPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             if (selected && DetectSwipe(currentPosition))
             {
-                //hexagonManager.RotateTween(hit);
-                StartCoroutine(Waiter(hit));
+                StartCoroutine(Waiter(hit, hexagonManager.FindCenter(hit)));
             }
             else { 
                 RaycastHit2D nullchecker = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
@@ -77,18 +77,47 @@ public class TouchManager : MonoBehaviour
         }
 #endif
     }
-    IEnumerator Waiter(RaycastHit2D[] hit)
+    IEnumerator Waiter(RaycastHit2D[] hit, Vector2 rayPoint)
     {
+        bool flag = false;
+        int columnCount = 0;
         hexagonManager.frame.SetActive(false);
         hexagonManager.centerDot.SetActive(false);
+        List<Vector2> columnCoordinates = new List<Vector2>(); ;
         for (int i = 0; i < 3; i++)
         {
             yield return StartCoroutine(hexagonManager.Rotator(hit));
             yield return new WaitForSeconds(1.0f);
-            if (hexagonManager.explosionDetected)
+            if (hexagonManager.explodeList.Count > 0)
             {
-                hexagonManager.Explode();
+                columnCoordinates = hexagonManager.Explode();
+                columnCount = columnCoordinates.Count;
+                flag = true;
                 break;
+            }
+        }
+        while (flag)
+        {
+            yield return new WaitForSeconds(0.2f);
+            hexagonManager.moveEnded = hexagonManager.moveCounter == columnCount;
+            if (hexagonManager.moveEnded)
+            {
+                hexagonManager.SearchExplosion(Physics2D.RaycastAll(rayPoint, Vector2.zero));
+                if (hexagonManager.explodeList.Count > 0)
+                {
+                    List<Vector2> tempList = hexagonManager.Explode();
+                    columnCount = tempList.Count;
+                    foreach (var item in tempList)
+                    {
+                        columnCoordinates.Add(item);
+                    }
+                }
+                else
+                {
+                    StartCoroutine(hexagonManager.Filler(columnCoordinates));
+                    break;
+                }
+                    
             }
         }
         hexagonManager.rotateDetected = false;

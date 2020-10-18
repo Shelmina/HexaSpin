@@ -9,6 +9,7 @@ public class ProtectedClass : MonoBehaviour
     protected float HALF_HORIZONTAL = 0.6f;
     protected float HALF_VERTICAL = 0.35f;
     protected float TIME_TO_ROTATE = 0.25f;
+    protected float WAIT_THRESHOLD = 0.5f;
     protected int TOTAL_TILE = 72;
     protected int ROW = 9;
     protected int COLUMN = 8;
