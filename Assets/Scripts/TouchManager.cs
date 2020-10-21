@@ -1,20 +1,16 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.UIElements;
-using UnityEngineInternal;
-
+﻿using UnityEngine;
 public class TouchManager : MonoBehaviour
 {
     private HexagonManager hexagonManager;
-    bool selected = false;
+    public bool selected = false;
+    public GameObject centerDot;
     Vector2 initialPosition;
     Vector2 currentPosition;
-    RaycastHit2D[] hit;
+    public RaycastHit2D[] hit;
+    public static TouchManager instance = null;
     void Start()
     {
+        instance = GetComponent<TouchManager>();
         hexagonManager = GetComponent<HexagonManager>();
         hexagonManager.Deselect();
     }
@@ -55,75 +51,27 @@ public class TouchManager : MonoBehaviour
             currentPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             if (selected && DetectSwipe(currentPosition))
             {
-                StartCoroutine(Waiter(hit, hexagonManager.FindCenter(hit)));
+                StartCoroutine(hexagonManager.Waiter(hit, centerDot.transform.position));
             }
             else { 
                 RaycastHit2D nullchecker = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
                 if (nullchecker.collider == null && false)
                 {
-                    hexagonManager.Deselect();
-                    selected = false;
+                    selected = hexagonManager.Deselect();
                 }
                 else
                 {
                     hit = Physics2D.CircleCastAll(Camera.main.ScreenToWorldPoint(Input.mousePosition), 0.15f, Vector2.zero);
                     if (hexagonManager.IsValidGroup(hit))
                     {
-                        hexagonManager.Select(hit);
-                        selected = true;
+                        selected = hexagonManager.Select(hit);
                     }
                 }
             }
         }
 #endif
     }
-    IEnumerator Waiter(RaycastHit2D[] hit, Vector2 rayPoint)
-    {
-        bool flag = false;
-        int columnCount = 0;
-        hexagonManager.frame.SetActive(false);
-        hexagonManager.centerDot.SetActive(false);
-        List<Vector2> columnCoordinates = new List<Vector2>(); ;
-        for (int i = 0; i < 3; i++)
-        {
-            yield return StartCoroutine(hexagonManager.Rotator(hit));
-            yield return new WaitForSeconds(1.0f);
-            if (hexagonManager.explodeList.Count > 0)
-            {
-                columnCoordinates = hexagonManager.Explode();
-                columnCount = columnCoordinates.Count;
-                flag = true;
-                break;
-            }
-        }
-        while (flag)
-        {
-            yield return new WaitForSeconds(0.2f);
-            hexagonManager.moveEnded = hexagonManager.moveCounter == columnCount;
-            if (hexagonManager.moveEnded)
-            {
-                hexagonManager.SearchExplosion(Physics2D.RaycastAll(rayPoint, Vector2.zero));
-                if (hexagonManager.explodeList.Count > 0)
-                {
-                    List<Vector2> tempList = hexagonManager.Explode();
-                    columnCount = tempList.Count;
-                    foreach (var item in tempList)
-                    {
-                        columnCoordinates.Add(item);
-                    }
-                }
-                else
-                {
-                    StartCoroutine(hexagonManager.Filler(columnCoordinates));
-                    break;
-                }
-                    
-            }
-        }
-        hexagonManager.rotateDetected = false;
-        hexagonManager.frame.SetActive(true);
-        hexagonManager.centerDot.SetActive(true);
-    }
+   
     public bool DetectSwipe(Vector2 currentPosition) {
         //if (Input.GetTouch(0).phase == TouchPhase.Moved)
         //Debug.Log("initial: " + initialPosition.ToString() + " current:" + currentPosition.ToString());

@@ -13,6 +13,7 @@ public class ProtectedClass : MonoBehaviour
     protected int TOTAL_TILE = 72;
     protected int ROW = 9;
     protected int COLUMN = 8;
+    protected int SCORE_MULTIPLIER = 5;
     protected readonly Vector2 OUT_OF_CAMERA = new Vector2(-10f, 0f); //For dot and frame to reset their positions.
     protected readonly Vector2 GRID_START_POSITION = new Vector2(0f, 0f);
 }
