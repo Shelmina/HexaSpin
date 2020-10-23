@@ -1,27 +1,31 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
-public class BombHexagon : MonoBehaviour
+public class BombHexagon : Hexagon
 {
+    public TextMeshPro clockText;
     private int clock;
-    // Start is called before the first frame update
     void Start()
     {
         clock = 10;
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        clockText.text = clock.ToString();
     }
     public void ClockTick()
     {
         clock--;
+        clockText.text = clock.ToString();
         if(clock == 0)
         {
-            //game over
+            SceneManager.LoadScene(0);
         }
+    }
+    public void Respawn()
+    {
+        clock = 10;
+        clockText.text = clock.ToString();
+        this.gameObject.SetActive(true);
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
+using System.Runtime.CompilerServices;
 
 public class HexagonManager : ProtectedClass
 {
@@ -9,9 +10,14 @@ public class HexagonManager : ProtectedClass
     public GameObject centerDot;
     public GameObject frame;
     public GameObject refHex;
+    public GameObject bombPrefab;
     public Color[] colors;
     public bool clockwise;
     public bool moveEnded;
+    public bool touchAvailable;
+    public int moveCounter;
+    public static HexagonManager instance = null;
+    public List<GameObject> explodeList, objectPool, bombPool;
     GameObject[,] tiles;
     GameObject tile;
     private float xPosition;
@@ -19,12 +25,9 @@ public class HexagonManager : ProtectedClass
     private int counter = 0;
     private int rowNum = 0;
     private int colNum = 0;
-    public int moveCounter;
     private bool valid = false;
-    public bool rotateDetected = false;
+    private bool bombsActive = false;
     private Hexagon tempHexagon;
-    public static HexagonManager instance = null;
-    public List<GameObject> explodeList, objectPool;
     private void Awake()
     {
         instance = GetComponent<HexagonManager>();
@@ -32,6 +35,10 @@ public class HexagonManager : ProtectedClass
         xPosition = GRID_START_POSITION.x;
         yPosition = GRID_START_POSITION.y;
         explodeList = new List<GameObject>();
+        bombPool.Add(Instantiate(bombPrefab, OUT_OF_CAMERA, Quaternion.identity) as GameObject);
+        bombPool[0].transform.parent = this.transform;
+        bombPool[0].SetActive(false);
+        touchAvailable = true;
     }
     public void ConstructBoardTiles()
     {
@@ -168,7 +175,7 @@ public class HexagonManager : ProtectedClass
             return false;
         foreach (var item in hit)
         {
-            if (!item.collider.CompareTag("Hexagon"))
+            if ((!item.collider.CompareTag("Hexagon")) && (!item.collider.CompareTag("Bomb")))
             {
                 return false;
             }
@@ -249,10 +256,11 @@ public class HexagonManager : ProtectedClass
         return tempArray;
     }
     //Replacement will be added. This function just for testing.
-    List<Vector2> Explode()
+    private List<Vector2> Explode()
     {
         moveEnded = false;
         moveCounter = 0;
+        CheckBombExplosions();
         List<Vector2> linecastList = FillLinecast();
         foreach (var item in explodeList)
         {
@@ -261,6 +269,7 @@ public class HexagonManager : ProtectedClass
             item.SetActive(false);
         }
         ScoreHandler.instance.UpdateScore(explodeList.Count * SCORE_MULTIPLIER);
+        bombsActive = int.Parse(ScoreHandler.instance.scoreText.text.ToString()) >= 1000;
         explodeList.Clear();
         foreach (var item in linecastList)
         {
@@ -331,7 +340,6 @@ public class HexagonManager : ProtectedClass
     //Call the coroutine for all objects that.
     IEnumerator Rotator(RaycastHit2D[] rayhit)
     {
-        rotateDetected = true;
         StartCoroutine(RotateFunction(rayhit[0].collider.gameObject, centerDot));
         StartCoroutine(RotateFunction(rayhit[1].collider.gameObject, centerDot));
         StartCoroutine(RotateFunction(rayhit[2].collider.gameObject, centerDot));
@@ -350,7 +358,7 @@ public class HexagonManager : ProtectedClass
             hexobject.transform.RotateAround(circ.transform.position, rotateVector, rotateAngle);
             yield return new WaitForSeconds(rotateThreshold);
         }
-        if (hexobject.CompareTag("Hexagon"))
+        if (hexobject.CompareTag("Hexagon") || (hexobject.CompareTag("Bomb")))
         {
             hexobject.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
         }
@@ -389,6 +397,7 @@ public class HexagonManager : ProtectedClass
         RaycastHit2D[] rayArray = Physics2D.CircleCastAll(rayPoint, 0.15f, Vector2.zero);
         TouchManager.instance.selected = Select(rayArray);
         TouchManager.instance.hit = rayArray;
+        touchAvailable = true;
         yield return null;
     }
     IEnumerator FillColumn(int emptySpots, Vector2 reference)
@@ -397,14 +406,75 @@ public class HexagonManager : ProtectedClass
         for (int i = 0; i < emptySpots; i++)
         {
             refHex.transform.position = reference;
-            gameObj = objectPool.Count > 0 ? objectPool[0] : null;
-            objectPool.Remove(gameObj);
+            if (bombsActive)
+            {
+                int rand = Random.Range(0 , 10);
+                if(rand == 5)
+                {
+                    gameObj = GetBomb();
+                }
+                else
+                {
+                    gameObj = objectPool.Count > 0 ? objectPool[0] : null;
+                    objectPool.Remove(gameObj);
+                }
+            }
+            else
+            {
+                gameObj = objectPool.Count > 0 ? objectPool[0] : null;
+                objectPool.Remove(gameObj);
+            }
             gameObj.SetActive(true);
             gameObj.GetComponent<Hexagon>().SetColor(ColorHexTile(refHex.GetComponent<Hexagon>()));
             gameObj.transform.position = reference + new Vector2(0f, 10f);
             gameObj.transform.DOMoveY(reference.y, WAIT_THRESHOLD);
             reference += new Vector2(0f, VERTICAL_GRID_DISTANCE); //Move to the upper spot
             yield return new WaitForSeconds(WAIT_THRESHOLD);
+        }
+    }
+    //Takes a bomb from pool, if not exist then create one.
+    private GameObject GetBomb()
+    {
+        foreach (var item in bombPool)
+        {
+            if (!item.activeSelf)
+            {
+                item.GetComponent<BombHexagon>().Respawn();
+                return item;
+            }
+        }
+        GameObject temp = Instantiate(bombPrefab, OUT_OF_CAMERA, Quaternion.identity);
+        temp.transform.parent = this.transform;
+        bombPool.Add(temp);
+        return temp;
+    }
+    //Ticks all clocks by 1.
+    private void TickBombs()
+    {
+        foreach (var item in bombPool)
+        {
+            if (item.activeSelf)
+                item.GetComponent<BombHexagon>().ClockTick();
+        }
+    }
+    //Returns all active childs that have same color.
+    private void CheckBombExplosions()
+    {
+        List<Color> bombColors = new List<Color>();
+        GameObject temp;
+        int children = transform.childCount;
+        foreach (var item in explodeList)
+        {
+            if ((item.CompareTag("Bomb") && (!bombColors.Contains(item.GetComponent<SpriteRenderer>().color))))
+                bombColors.Add(item.GetComponent<SpriteRenderer>().color);
+        }
+        for (int i = 0; i < children; i++)
+        {
+            temp = transform.GetChild(i).gameObject;
+            if (temp.activeSelf && (bombColors.Contains(temp.GetComponent<SpriteRenderer>().color)) && (!explodeList.Contains(temp)))
+            {
+                explodeList.Add(temp);
+            }
         }
     }
     public IEnumerator Waiter(RaycastHit2D[] hit, Vector2 rayPoint)
@@ -415,7 +485,6 @@ public class HexagonManager : ProtectedClass
         List<Vector2> columnCoordinates = new List<Vector2>();
         frame.SetActive(false);
         centerDot.SetActive(false);
-
         for (int i = 0; i < 3; i++)
         {
             yield return StartCoroutine(Rotator(hit));
@@ -426,10 +495,10 @@ public class HexagonManager : ProtectedClass
             hit[2].transform.position = new Vector2((float)System.Math.Round(hit[2].transform.position.x, 2), (float)System.Math.Round(hit[2].transform.position.y, 2));
             if (explodeList.Count > 0)
             {
-                ///bomb controller
                 columnCoordinates = Explode();
                 columnCount = columnCoordinates.Count;
                 flag = true;
+                TickBombs();
                 break;
             }
         }
@@ -442,7 +511,7 @@ public class HexagonManager : ProtectedClass
                 noExplosion = true;
                 foreach (var item in columnCoordinates)
                 {
-                    RaycastHit2D[] ray = Physics2D.LinecastAll(item - new Vector2(0f, VERTICAL_GRID_DISTANCE), item + new Vector2(0f, 6f));
+                    RaycastHit2D[] ray = Physics2D.LinecastAll(new Vector2(item.x, 0.35f), item + new Vector2(0f, 6f)); ;
                     SearchExplosion(ray);
                     if (explodeList.Count > 0)
                     {
@@ -462,6 +531,5 @@ public class HexagonManager : ProtectedClass
             }
         }
         StartCoroutine(Filler(columnCoordinates, rayPoint));
-        rotateDetected = false;
     }
 }

@@ -46,16 +46,17 @@ public class TouchManager : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
             initialPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
 
-        if ((!hexagonManager.rotateDetected)&&(Input.GetMouseButtonUp(0)))
+        if ((hexagonManager.touchAvailable)&&(Input.GetMouseButtonUp(0)))
         {
             currentPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             if (selected && DetectSwipe(currentPosition))
             {
+                hexagonManager.touchAvailable = false;
                 StartCoroutine(hexagonManager.Waiter(hit, centerDot.transform.position));
             }
-            else { 
+            else {
                 RaycastHit2D nullchecker = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
-                if (nullchecker.collider == null && false)
+                if (nullchecker.collider == null)
                 {
                     selected = hexagonManager.Deselect();
                 }
@@ -67,6 +68,7 @@ public class TouchManager : MonoBehaviour
                         selected = hexagonManager.Select(hit);
                     }
                 }
+                hexagonManager.touchAvailable = true;
             }
         }
 #endif
