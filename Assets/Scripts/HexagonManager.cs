@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
-using System.Runtime.CompilerServices;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class HexagonManager : ProtectedClass
 {
@@ -15,6 +16,7 @@ public class HexagonManager : ProtectedClass
     public bool clockwise;
     public bool moveEnded;
     public bool touchAvailable;
+    public GameObject gameoverPanel;
     public int moveCounter;
     public static HexagonManager instance = null;
     public List<GameObject> explodeList, objectPool, bombPool;
@@ -39,6 +41,7 @@ public class HexagonManager : ProtectedClass
         bombPool[0].transform.parent = this.transform;
         bombPool[0].SetActive(false);
         touchAvailable = true;
+        gameoverPanel.SetActive(false);
     }
     public void ConstructBoardTiles()
     {
@@ -270,11 +273,12 @@ public class HexagonManager : ProtectedClass
         }
         ScoreHandler.instance.UpdateScore(explodeList.Count * SCORE_MULTIPLIER);
         bombsActive = int.Parse(ScoreHandler.instance.scoreText.text.ToString()) >= 1000;
-        explodeList.Clear();
+        
         foreach (var item in linecastList)
         {
             StartCoroutine(MoveObjects(FindLinecastArray(item)));
         }
+        explodeList.Clear();
         return linecastList;
     }
     public List<Vector2> FillLinecast()
@@ -299,7 +303,7 @@ public class HexagonManager : ProtectedClass
         RaycastHit2D[] foundElements = Physics2D.LinecastAll(pos - new Vector2(0f, VERTICAL_GRID_DISTANCE), pos + new Vector2(0f, 6f));
         return foundElements;
     }
-    IEnumerator MoveObjects(RaycastHit2D[] arr)
+    public IEnumerator MoveObjects(RaycastHit2D[] arr)
     {
         for (int i = 0; i < arr.Length; i++)
         {
@@ -531,5 +535,10 @@ public class HexagonManager : ProtectedClass
             }
         }
         StartCoroutine(Filler(columnCoordinates, rayPoint));
+    }
+    public void GameRestart()
+    {
+        SceneManager.LoadScene(0);
+        gameoverPanel.SetActive(false);
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class BombHexagon : Hexagon
 {
@@ -17,9 +18,11 @@ public class BombHexagon : Hexagon
     {
         clock--;
         clockText.text = clock.ToString();
-        if(clock == 0)
+        if (clock == 0)
         {
-            SceneManager.LoadScene(0);
+            GameObject temp = this.transform.parent.GetComponent<HexagonManager>().gameoverPanel;
+            temp.SetActive(true);
+            temp.GetComponentInChildren<Text>().text = "Your Score:" + 1000;
         }
     }
     public void Respawn()

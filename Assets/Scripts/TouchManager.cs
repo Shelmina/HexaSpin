@@ -43,32 +43,38 @@ public class TouchManager : MonoBehaviour
 
         //for testing on editor
 #if UNITY_EDITOR
-        if (Input.GetMouseButtonDown(0))
-            initialPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-
-        if ((hexagonManager.touchAvailable)&&(Input.GetMouseButtonUp(0)))
+        if (!hexagonManager.gameoverPanel.activeSelf)
         {
-            currentPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            if (selected && DetectSwipe(currentPosition))
+            if (Input.GetMouseButtonDown(0))
+                initialPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+
+            if ((hexagonManager.touchAvailable) && (Input.GetMouseButtonUp(0)))
             {
-                hexagonManager.touchAvailable = false;
-                StartCoroutine(hexagonManager.Waiter(hit, centerDot.transform.position));
-            }
-            else {
-                RaycastHit2D nullchecker = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
-                if (nullchecker.collider == null)
+                currentPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                if (selected && DetectSwipe(currentPosition))
                 {
-                    selected = hexagonManager.Deselect();
+                    hexagonManager.touchAvailable = false;
+                    StartCoroutine(hexagonManager.Waiter(hit, centerDot.transform.position));
                 }
                 else
                 {
-                    hit = Physics2D.CircleCastAll(Camera.main.ScreenToWorldPoint(Input.mousePosition), 0.15f, Vector2.zero);
-                    if (hexagonManager.IsValidGroup(hit))
+                    RaycastHit2D nullchecker = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
+                    if (nullchecker.collider == null)
                     {
-                        selected = hexagonManager.Select(hit);
+                        selected = hexagonManager.Deselect();
                     }
+                    else
+                    {
+                        hit = Physics2D.CircleCastAll(Camera.main.ScreenToWorldPoint(Input.mousePosition), 0.15f, Vector2.zero);
+                        if (hexagonManager.IsValidGroup(hit))
+                        {
+                            selected = hexagonManager.Select(hit);
+                        }
+                        else
+                            hexagonManager.Deselect();
+                    }
+                    hexagonManager.touchAvailable = true;
                 }
-                hexagonManager.touchAvailable = true;
             }
         }
 #endif

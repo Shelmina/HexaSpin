@@ -195,6 +195,7 @@ MonoBehaviour:
   clockwise: 0
   moveEnded: 0
   touchAvailable: 0
+  gameoverPanel: {fileID: 1702867778}
   moveCounter: 0
   explodeList: []
   objectPool: []
@@ -399,7 +400,7 @@ GameObject:
   - component: {fileID: 651592884}
   - component: {fileID: 651592883}
   m_Layer: 5
-  m_Name: Text
+  m_Name: TotalScore
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -456,7 +457,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Your Score : '
+  m_Text: 
 --- !u!222 &651592884
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -814,7 +815,18 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1603892964}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 439539622}
+        m_MethodName: GameRestart
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &1603892964
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -864,7 +876,7 @@ GameObject:
   - component: {fileID: 1702867781}
   - component: {fileID: 1702867780}
   m_Layer: 5
-  m_Name: Panel
+  m_Name: Gameover Panel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
