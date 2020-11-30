@@ -54,7 +54,7 @@ public class TouchManager : MonoBehaviour
                 if (selected && DetectSwipe(currentPosition))
                 {
                     hexagonManager.touchAvailable = false;
-                    StartCoroutine(hexagonManager.Waiter(hit, centerDot.transform.position));
+                    StartCoroutine(hexagonManager.Waiter(hit));
                 }
                 else
                 {

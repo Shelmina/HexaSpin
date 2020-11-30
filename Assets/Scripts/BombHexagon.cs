@@ -20,9 +20,7 @@ public class BombHexagon : Hexagon
         clockText.text = clock.ToString();
         if (clock == 0)
         {
-            GameObject temp = this.transform.parent.GetComponent<HexagonManager>().gameoverPanel;
-            temp.SetActive(true);
-            temp.GetComponentInChildren<Text>().text = "Your Score:" + 1000;
+            GameOver.instance.EndGame();
         }
     }
     public void Respawn()

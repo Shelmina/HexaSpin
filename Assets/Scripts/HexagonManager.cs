@@ -12,12 +12,11 @@ public class HexagonManager : ProtectedClass
     public GameObject frame;
     public GameObject refHex;
     public GameObject bombPrefab;
+    public GameObject particleEffectPrefab;
+    public GameObject gameoverPanel;
     public Color[] colors;
     public bool clockwise;
-    public bool moveEnded;
     public bool touchAvailable;
-    public GameObject gameoverPanel;
-    public int moveCounter;
     public static HexagonManager instance = null;
     public List<GameObject> explodeList, objectPool, bombPool;
     GameObject[,] tiles;
@@ -259,28 +258,21 @@ public class HexagonManager : ProtectedClass
         return tempArray;
     }
     //Replacement will be added. This function just for testing.
-    private List<Vector2> Explode()
+    private void Explode()
     {
-        moveEnded = false;
-        moveCounter = 0;
         CheckBombExplosions();
         List<Vector2> linecastList = FillLinecast();
         foreach (var item in explodeList)
         {
             objectPool.Add(item);
+            Instantiate(particleEffectPrefab, item.transform.position, Quaternion.identity);
             item.transform.position = OUT_OF_CAMERA;
             item.SetActive(false);
         }
         ScoreHandler.instance.UpdateScore(explodeList.Count * SCORE_MULTIPLIER);
         bombsActive = int.Parse(ScoreHandler.instance.scoreText.text.ToString()) >= 1000;
-        
-        foreach (var item in linecastList)
-        {
-            StartCoroutine(BlockManager(item));
-            //StartCoroutine(MoveObjects(FindLinecastArray(item)));
-        }
+        BlockLocator(linecastList);
         explodeList.Clear();
-        return linecastList;
     }
     public List<Vector2> FillLinecast()
     {
@@ -304,71 +296,136 @@ public class HexagonManager : ProtectedClass
         RaycastHit2D[] foundElements = Physics2D.LinecastAll(pos - new Vector2(0f, VERTICAL_GRID_DISTANCE), pos + new Vector2(0f, 6f));
         return foundElements;
     }
-    IEnumerator BlockManager(Vector2 columnVector)
+    private void BlockLocator(List<Vector2> columnList)
     {
+        //Debug.Log("BLOCK MANAGER COLUMNVECTOR:" + columnVector.ToString());
         RaycastHit2D ray;
-        List<GameObject> tempBlock = new List<GameObject>();
-        Vector2 tempVector = columnVector - new Vector2(0f, VERTICAL_GRID_DISTANCE * 8);
-        //Sequence sequence = DOTween.Sequence(); //to move all blocks at the same time
-        //sequence.Pause();
-        //Queue<Sequence> SequenceQueue
-        while (tempVector.y < 5.7f)
+        foreach (var columnVector in columnList)
         {
-            ray = Physics2D.Raycast(tempVector, Vector2.zero);
-            if (ray.collider != null)
+            List<GameObject> tempBlock = new List<GameObject>();
+            Vector2 tempVector = columnVector - new Vector2(0f, VERTICAL_GRID_DISTANCE * 8);
+            //int a = 0;
+            while (tempVector.y < 5.7f)
             {
-                tempBlock.Add(ray.collider.gameObject);
-                //sequence.Append(GetMoveTween(ray.collider.gameObject)); //prepare the object to move
+                //a++;
+                ray = Physics2D.Raycast(tempVector, Vector2.zero);
+                //Debug.Log("while count:" + a);
+                if (ray.collider != null)
+                {
+                    tempBlock.Add(ray.collider.gameObject);
+                }
+                else if (tempBlock.Count > 0)
+                {
+                    MoveBlock(tempBlock);
+                    tempBlock.Clear();
+                }
+                tempVector += new Vector2(0f, VERTICAL_GRID_DISTANCE);
             }
-            else if (tempBlock.Count > 0)
-            //else if (notEmpty)
+            if (tempBlock.Count > 0)
             {
-                //if(tempVector.y + VERTICAL_GRID_DISTANCE >= 5.7f)
-                //{
-                //    print("Waiting for tweens");
-                //    yield return StartCoroutine(MoveBlock(tempBlock));
-                //} 
-                StartCoroutine(MoveBlock(tempBlock));
-                //StartCoroutine(MoveBlock(tempBlock));
-                tempBlock.Clear();
-                //sequence.Complete();
+                MoveBlock(tempBlock);
             }
-            tempVector += new Vector2(0f, VERTICAL_GRID_DISTANCE);
         }
-        if (tempBlock.Count > 0)
-        {
-            yield return StartCoroutine(MoveBlock(tempBlock));
-        }
-        //yield return new WaitForSeconds(3f);
-        print("Incrementing counter");
-        moveCounter++;
+        StartCoroutine(ExplosionDetectAfterMovement());
+        //isimlendirmelere bak
+        //ui şart
+        //puanın game over panelinde yazdırılması
+        //high score yok onu yapıcam
     }
-    public IEnumerator MoveBlock(List<GameObject> block)
+    IEnumerator ExplosionDetectAfterMovement()
     {
+        yield return new WaitForSeconds(WAIT_THRESHOLD);
+        if(!ScanForExplosion())
+        {
+            //StartCoroutine(Filler(columnList));
+            MissingSpotFinder();
+            yield return new WaitForSeconds(WAIT_THRESHOLD);
+            ScanForExplosion();
+        }
+
+    }
+    private void MoveBlock(List<GameObject> block)
+    {
+        int steps = StepToFall(block[0].gameObject);
         if(block.Count > 0)
         {   
-            while (CanFall(block[0].GetComponent<Hexagon>().GetNearbies().down))
+            for (int i = 0; i < block.Count; i++)
             {
-                for (int i = 0; i < block.Count; i++)
-                {
-                    block[i].transform.DOMoveY(block[i].transform.position.y - VERTICAL_GRID_DISTANCE, WAIT_THRESHOLD);
-                }
-                yield return new WaitForSeconds(WAIT_THRESHOLD);
-                foreach (var item in block)
-                {
-                    item.transform.position = new Vector2((float)System.Math.Round(item.transform.position.x, 2),
-                        (float)System.Math.Round(item.transform.position.y, 2));
-                }
-            }
+                block[i].transform.DOMoveY(block[i].transform.position.y - VERTICAL_GRID_DISTANCE * steps, WAIT_THRESHOLD);
+            }         
         }
         
     }
-
-    //public Tween GetMoveTween(GameObject go)
+    private void MissingSpotFinder()
+    {
+        float xPos = 0;
+        float yPos = 0;
+        bool reverse = false;
+        while (xPos < 4.3f)
+        {
+            while (yPos < 5.7f)
+            {
+                RaycastHit2D ray = Physics2D.Raycast(new Vector2(xPos, yPos), Vector2.zero);
+                if (ray.collider == null)
+                {
+                    StartCoroutine(ColumnFiller(new Vector2(xPos, yPos)));
+                    break;
+                }
+                yPos += VERTICAL_GRID_DISTANCE;
+            }
+            yPos = reverse ? 0f : HALF_VERTICAL;
+            reverse = !reverse;
+            xPos += HALF_HORIZONTAL;
+        }
+    }
+    private IEnumerator ColumnFiller(Vector2 emptySpot)
+    {
+        GameObject gameObj;
+        Vector2 differenceVec = new Vector2(0f, 7f);
+        while (emptySpot.y < 5.7f)
+        {
+            if (bombsActive && (Random.Range(0, 100) == 99))
+            {
+                gameObj = GetBomb();
+            }
+            else
+            {
+                gameObj = objectPool.Count > 0 ? objectPool[0] : null;
+                objectPool.Remove(gameObj);
+            }
+            gameObj.SetActive(true);
+            gameObj.GetComponent<Hexagon>().SetColor(colors[Random.Range(0, 5)]);
+            gameObj.transform.position = emptySpot + differenceVec;
+            differenceVec += new Vector2(0f, 1f);
+            gameObj.transform.DOMoveY(emptySpot.y, WAIT_THRESHOLD);
+            emptySpot += new Vector2(0f, VERTICAL_GRID_DISTANCE);
+        }
+        yield return new WaitForSeconds(WAIT_THRESHOLD);
+        touchAvailable = true;
+    }
+    private bool ScanForExplosion(bool rotated = false)
+    {
+        Vector2 lineStartPoint = new Vector2(0f, -0.5f);
+        RaycastHit2D[] rayArray;
+        if(rotated)
+            TickBombs();
+        for (int i = 0; i < 8; i++)
+        {
+            rayArray = Physics2D.LinecastAll(lineStartPoint, lineStartPoint + new Vector2(0f, 6f));
+            SearchExplosion(rayArray);
+            lineStartPoint += new Vector2(HALF_HORIZONTAL, 0f);
+        }
+        if (explodeList.Count > 0)
+        {
+            Explode();
+            return true;
+        }
+        return false;
+    }
+   /*public Tween GetMoveTween(GameObject go)
     //{
     //    return go.transform.DOMoveY(go.transform.position.y - VERTICAL_GRID_DISTANCE, WAIT_THRESHOLD);
     //}
-
     public bool CanFall(Vector2 vec)
     {
         if (vec.y < -0.36f)
@@ -385,7 +442,6 @@ public class HexagonManager : ProtectedClass
             yield return new WaitForSeconds(WAIT_THRESHOLD);
             arr[i].transform.position = new Vector2((float)System.Math.Round(arr[i].transform.position.x, 2), (float)System.Math.Round(arr[i].transform.position.y, 2));
         }
-        moveCounter++;
     }
     public void TweenMove(GameObject gameObj)
     {
@@ -394,7 +450,7 @@ public class HexagonManager : ProtectedClass
         {
             gameObj.transform.DOMoveY(gameObj.transform.position.y - steps * VERTICAL_GRID_DISTANCE, WAIT_THRESHOLD);
         }
-    }
+    }*/
     public int StepToFall(GameObject item)
     {
         Vector2 down = new Vector2(item.transform.position.x, item.transform.position.y - VERTICAL_GRID_DISTANCE);
@@ -405,28 +461,23 @@ public class HexagonManager : ProtectedClass
             ray = Physics2D.Raycast(down, Vector2.zero);
             if (ray.collider == null)
             {
-                down -= new Vector2(0f, VERTICAL_GRID_DISTANCE);
                 steps++;
             }
-            else
-            {
-                break;
-            }
+            down -= new Vector2(0f, VERTICAL_GRID_DISTANCE);
         }
         return steps;
     }
     
     //Call the coroutine for all objects that.
-    IEnumerator Rotator(RaycastHit2D[] rayhit)
+    private void Rotator(RaycastHit2D[] rayhit)
     {
         StartCoroutine(RotateFunction(rayhit[0].collider.gameObject, centerDot));
         StartCoroutine(RotateFunction(rayhit[1].collider.gameObject, centerDot));
         StartCoroutine(RotateFunction(rayhit[2].collider.gameObject, centerDot));
-        StartCoroutine(RotateFunction(frame, centerDot, rayhit));
-        yield return null;
+        StartCoroutine(RotateFunction(frame, centerDot));
     }
     //Animating the rotation of hexagons. It is called 4 times for rotation of a group.
-    IEnumerator RotateFunction(GameObject hexobject, GameObject circ, RaycastHit2D[] hit = null)
+    IEnumerator RotateFunction(GameObject hexobject, GameObject circ)
     {
         float rotateThreshold = 0.01f;
         int numberOfIterations = Mathf.RoundToInt(TIME_TO_ROTATE / rotateThreshold);
@@ -441,12 +492,8 @@ public class HexagonManager : ProtectedClass
         {
             hexobject.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
         }
-        if (hit != null)
-        {
-            SearchExplosion(hit);
-        }
     }
-    IEnumerator Filler(List<Vector2> vecList, Vector2 rayPoint) {
+    /*IEnumerator Filler(List<Vector2> vecList) {
         foreach (var pos in vecList)
         {
             float yPos = pos.y;
@@ -473,7 +520,7 @@ public class HexagonManager : ProtectedClass
             StartCoroutine(FillColumn(emptySpots, reference));
             yield return new WaitForSeconds(emptySpots * WAIT_THRESHOLD + 0.1f);
         }
-        RaycastHit2D[] rayArray = Physics2D.CircleCastAll(rayPoint, 0.15f, Vector2.zero);
+        RaycastHit2D[] rayArray = Physics2D.CircleCastAll(centerDot.transform.position, 0.15f, Vector2.zero);
         TouchManager.instance.selected = Select(rayArray);
         TouchManager.instance.hit = rayArray;
         touchAvailable = true;
@@ -510,7 +557,7 @@ public class HexagonManager : ProtectedClass
             reference += new Vector2(0f, VERTICAL_GRID_DISTANCE); //Move to the upper spot
             yield return new WaitForSeconds(WAIT_THRESHOLD);
         }
-    }
+    }*/
     //Takes a bomb from pool, if not exist then create one.
     private GameObject GetBomb()
     {
@@ -550,69 +597,30 @@ public class HexagonManager : ProtectedClass
         for (int i = 0; i < children; i++)
         {
             temp = transform.GetChild(i).gameObject;
-            if (temp.activeSelf && (bombColors.Contains(temp.GetComponent<SpriteRenderer>().color)) && (!explodeList.Contains(temp)))
+            if (temp.activeSelf && (!temp.gameObject.CompareTag("GameOver")) && (bombColors.Contains(temp.GetComponent<SpriteRenderer>().color)) && (!explodeList.Contains(temp)))
             {
                 explodeList.Add(temp);
             }
         }
     }
-    public IEnumerator Waiter(RaycastHit2D[] hit, Vector2 rayPoint)
+    public IEnumerator Waiter(RaycastHit2D[] hit)
     {
-        bool flag = false;
-        bool noExplosion;
-        int columnCount = 0;
-        List<Vector2> columnCoordinates = new List<Vector2>();
         frame.SetActive(false);
         centerDot.SetActive(false);
         for (int i = 0; i < 3; i++)
         {
-            yield return StartCoroutine(Rotator(hit));
+            Rotator(hit);
             yield return new WaitForSeconds(TIME_TO_ROTATE + 0.1f);
             ////Normalize the objects to prevent bugs
             hit[0].transform.position = new Vector2((float)System.Math.Round(hit[0].transform.position.x, 2), (float)System.Math.Round(hit[0].transform.position.y, 2));
             hit[1].transform.position = new Vector2((float)System.Math.Round(hit[1].transform.position.x, 2), (float)System.Math.Round(hit[1].transform.position.y, 2));
             hit[2].transform.position = new Vector2((float)System.Math.Round(hit[2].transform.position.x, 2), (float)System.Math.Round(hit[2].transform.position.y, 2));
-            if (explodeList.Count > 0)
+            if (ScanForExplosion(true))
             {
-                columnCoordinates = Explode();
-                columnCount = columnCoordinates.Count;
-                flag = true;
-                TickBombs();
                 break;
             }
         }
-        while (flag)
-        {
-            yield return new WaitForSeconds(0.2f);
-            moveEnded = moveCounter == columnCount;
-            if (moveEnded)
-            {
-                moveCounter = 0;
-                noExplosion = true;
-                foreach (var item in columnCoordinates)
-                {
-                    RaycastHit2D[] ray = Physics2D.LinecastAll(new Vector2(item.x, 0.35f), item + new Vector2(0f, 6f)); ;
-                    SearchExplosion(ray);
-                    if (explodeList.Count > 0)
-                    {
-                        moveEnded = false;
-                        noExplosion = false;
-                        List<Vector2> tempList = Explode();
-                        columnCount = tempList.Count;
-                        foreach (var temp in tempList)
-                        {
-                            columnCoordinates.Add(temp);
-                        }
-                        columnCoordinates.Remove(item);
-                        break;
-                    }
-                }
-                if (noExplosion)
-                    break;
-            }
-        }
-        print("starting filler");
-        StartCoroutine(Filler(columnCoordinates, rayPoint));
+        //StartCoroutine(Filler(columnCoordinates, rayPoint));
     }
     public void GameRestart()
     {
